@@ -27,7 +27,11 @@ class RefreshServers(QtCore.QThread):
     def __init__(self, window):
         self.window = window
         QtCore.QThread.__init__(self)
-        self.connect(self, QtCore.SIGNAL('runNow'), self.refreshServers)
+        self.connect(self, QtCore.SIGNAL('runNow'), self.refreshServersNow)
+
+    def refreshServersNow(self):
+        data = self.refreshServers()
+        self.window.emit(QtCore.SIGNAL('updateMenu'), data)
 
     def run(self):
         while True:
