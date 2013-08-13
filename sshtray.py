@@ -182,7 +182,11 @@ class SSHTray(QtGui.QDialog):
         print "SSHing",instance
         result = 0
         command = "konsole"
-        p = subprocess.Popen([command, '--new-tab','-e', 'ssh', '-p' + self.configPort, "-v", self.configUsername + '@' + instance], stdout=subprocess.PIPE)
+        if os.environ.get('KDE_FULL_SESSION') == 'true':
+                p = subprocess.Popen([command, '--new-tab','-e', 'ssh', '-p' + self.configPort, "-v", self.configUsername + '@' + instance], stdout=subprocess.PIPE)
+        elif os.environ.get('GNOME_DESKTOP_SESSION_ID'):
+                command=  'gnome-terminal'
+                p = subprocess.Popen([command,'--tab', '-x', 'ssh', '-p' + self.configPort, "-v", self.configUsername + '@' + instance], stdout=subprocess.PIPE)
         result = p.returncode
 
     # options within tray context menu
