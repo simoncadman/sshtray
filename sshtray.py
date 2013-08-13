@@ -182,8 +182,7 @@ class SSHTray(QtGui.QDialog):
         print "SSHing",instance
         result = 0
         command = "konsole"
-        p = subprocess.Popen([command, '--hold', '-e', 'ssh', '-p' + self.configPort, "-v", self.configUsername + '@' + instance], stdout=subprocess.PIPE)
-        output = p.communicate()[0]
+        p = subprocess.Popen([command, '--new-tab','-e', 'ssh', '-p' + self.configPort, "-v", self.configUsername + '@' + instance], stdout=subprocess.PIPE)
         result = p.returncode
 
     # options within tray context menu
