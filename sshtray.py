@@ -62,8 +62,8 @@ class RefreshServers(QtCore.QThread):
                     groupName = 'Other'
                     if 'aws:autoscaling:groupName' in instance.tags:
                         groupName = instance.tags['aws:autoscaling:groupName']
-                    if 'customGroupName' in instance.tags:
-                        groupName = instance.tags['customGroupName']
+                    if 'TrayGroupName' in instance.tags:
+                        groupName = instance.tags['TrayGroupName']
                     if groupName not in ec2instances[instance.region.name]:
                         ec2instances[instance.region.name][groupName] = {}
                     ec2instances[instance.region.name][groupName][instance.id] = {'Name': instancename, 'IP' : instance.ip_address, 'Region' : instance.region.name }
