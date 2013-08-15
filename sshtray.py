@@ -25,13 +25,13 @@ import boto.ec2
 
 class RefreshServers(QtCore.QThread):
     def __init__(self, window):
+        self.refreshNow = False
         self.window = window
         QtCore.QThread.__init__(self)
         self.connect(self, QtCore.SIGNAL('runNow'), self.refreshServersNow)
 
     def refreshServersNow(self):
-        data = self.refreshServers()
-        self.window.emit(QtCore.SIGNAL('updateMenu'), data)
+        self.refreshNow = True
 
     def run(self):
         while True:
@@ -42,7 +42,11 @@ class RefreshServers(QtCore.QThread):
                 except Exception as e:
                     print "Error updating servers"
                     print e
-            time.sleep(self.window.configSleep)
+            for i in range(1,self.window.configSleep):
+                    if self.refreshNow  == True:
+                           self.refreshNow = False
+                           break
+                    time.sleep(1)
         
     def refreshServers(self):
         print "Refreshing servers"
@@ -104,6 +108,9 @@ class SSHTray(QtGui.QDialog):
         config.set('ec2', 'accessid', self.configEC2AccessId )
         config.set('ec2', 'secretkey', self.configEC2SecretKey )
         config.write(open(self.configFile,'w'))
+        self.refreshNow()
+
+    def refreshNow(self):
         self.refresh.emit(QtCore.SIGNAL('runNow') )
         
     def resetSettings(self):
@@ -197,6 +204,8 @@ class SSHTray(QtGui.QDialog):
         # default data
         self.settingsAction = QtGui.QAction("&Settings", self,
                 triggered=self.showNormal)
+        self.refreshAction = QtGui.QAction("&Refresh Now", self,
+                        triggered=self.refreshNow)
         self.quitAction = QtGui.QAction("&Quit", self,
                 triggered=QtGui.qApp.quit)
         
@@ -252,6 +261,7 @@ class SSHTray(QtGui.QDialog):
         
         self.trayIconMenu.addSeparator()
         self.trayIconMenu.addAction(self.settingsAction)
+        self.trayIconMenu.addAction(self.refreshAction)
         self.trayIconMenu.addAction(self.quitAction)
         
         if self.trayIcon != None:
