@@ -97,6 +97,8 @@ class SSHTray(QtGui.QDialog):
                 if config.has_section('ec2'):
                         self.configEC2AccessId = config.get('ec2', 'accessid')
                         self.configEC2SecretKey = config.get('ec2', 'secretkey')
+                if config.has_section('global'):
+                        self.configUsername = config.get('global', 'username')
             except:
                 pass
             
@@ -105,7 +107,11 @@ class SSHTray(QtGui.QDialog):
     def saveSettings(self):
         self.configEC2AccessId = str(self.accountEdit.text())
         self.configEC2SecretKey = str(self.secretEdit.text())
+        self.configUsername = str(self.usernameEdit.text())
         config = ConfigParser.ConfigParser()
+        config.add_section('global')
+        config.set('global', 'username', self.configUsername )
+
         config.add_section('ec2')
         config.set('ec2', 'accessid', self.configEC2AccessId )
         config.set('ec2', 'secretkey', self.configEC2SecretKey )
@@ -118,6 +124,7 @@ class SSHTray(QtGui.QDialog):
     def resetSettings(self):
         self.accountEdit.setText(self.configEC2AccessId)
         self.secretEdit.setText(self.configEC2SecretKey)
+        self.usernameEdit.setText(self.configUsername)
     
     def __init__(self):
         self.trayIcon = None
@@ -159,6 +166,18 @@ class SSHTray(QtGui.QDialog):
 
     # settings window
     def setupSettings(self):
+        
+        self.globalSettingsGroupBox = QtGui.QGroupBox("Global Settings")
+        self.globalSettingsLayout = QtGui.QGridLayout()
+        self.globalGroupBox = QtGui.QGridLayout()
+
+        usernameLabel = QtGui.QLabel("Default SSH Username:")
+        self.usernameEdit = QtGui.QLineEdit()
+        self.globalGroupBox.addWidget(usernameLabel, 0, 0)
+        self.globalGroupBox.addWidget(self.usernameEdit, 0, 1)
+
+        self.globalSettingsGroupBox.setLayout(self.globalGroupBox)
+        
         self.messageGroupBox = QtGui.QGroupBox("Amazon EC2")
 
         accountLabel = QtGui.QLabel("Access Key ID:")
@@ -174,16 +193,17 @@ class SSHTray(QtGui.QDialog):
         self.cancelButton = QtGui.QPushButton("&Cancel")
         self.cancelButton.clicked.connect(self.cancelSettingsButton)
 
-        messageLayout = QtGui.QGridLayout()
-        messageLayout.addWidget(accountLabel, 0, 0)
-        messageLayout.addWidget(self.accountEdit, 0, 1)
-        messageLayout.addWidget(secretLabel, 1, 0)
-        messageLayout.addWidget(self.secretEdit, 1, 1)
-        messageLayout.addWidget(self.saveButton, 2, 0)
-        messageLayout.addWidget(self.cancelButton, 2, 1)
-        self.messageGroupBox.setLayout(messageLayout)
+        ec2Layout = QtGui.QGridLayout()
+        ec2Layout.addWidget(accountLabel, 0, 0)
+        ec2Layout.addWidget(self.accountEdit, 0, 1)
+        ec2Layout.addWidget(secretLabel, 1, 0)
+        ec2Layout.addWidget(self.secretEdit, 1, 1)
+        ec2Layout.addWidget(self.saveButton, 2, 0)
+        ec2Layout.addWidget(self.cancelButton, 2, 1)
+        self.messageGroupBox.setLayout(ec2Layout)
         
         mainLayout = QtGui.QVBoxLayout()
+        mainLayout.addWidget(self.globalSettingsGroupBox)
         mainLayout.addWidget(self.messageGroupBox)
         self.setLayout(mainLayout)
         
