@@ -66,8 +66,8 @@ class RefreshServers(QtCore.QThread):
                     groupName = 'Other'
                     if 'aws:autoscaling:groupName' in instance.tags:
                         groupName = instance.tags['aws:autoscaling:groupName']
-                    if 'TrayGroupName' in instance.tags:
-                        groupName = instance.tags['TrayGroupName']
+                    if self.window.configEC2TrayGroupName in instance.tags:
+                        groupName = instance.tags[self.window.configEC2TrayGroupName]
                     if groupName not in ec2instances[instance.region.name]:
                         ec2instances[instance.region.name][groupName] = {}
                     ec2instances[instance.region.name][groupName][instance.id] = {'Name': instancename, 'IP' : instance.ip_address, 'Region' : instance.region.name, 'Status' : instance.state }
@@ -87,6 +87,8 @@ class SSHTray(QtGui.QDialog):
         self.configPort = str(22)
         self.configUsername = getpass.getuser()
         self.configSleep = 300
+        self.configEC2TrayGroupName = 'TrayGroupName'
+
         # load from file
         if os.path.exists(self.configFile):
             try:
