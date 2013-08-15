@@ -260,8 +260,9 @@ class SSHTray(QtGui.QDialog):
             self.trayIconMenu.addAction(self.loadingAction)
         
         self.trayIconMenu.addSeparator()
-        self.trayIconMenu.addAction(self.settingsAction)
         self.trayIconMenu.addAction(self.refreshAction)
+        self.trayIconMenu.addSeparator()
+        self.trayIconMenu.addAction(self.settingsAction)
         self.trayIconMenu.addAction(self.quitAction)
         
         if self.trayIcon != None:
