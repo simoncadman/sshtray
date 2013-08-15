@@ -70,7 +70,7 @@ class RefreshServers(QtCore.QThread):
                         groupName = instance.tags['TrayGroupName']
                     if groupName not in ec2instances[instance.region.name]:
                         ec2instances[instance.region.name][groupName] = {}
-                    ec2instances[instance.region.name][groupName][instance.id] = {'Name': instancename, 'IP' : instance.ip_address, 'Region' : instance.region.name }
+                    ec2instances[instance.region.name][groupName][instance.id] = {'Name': instancename, 'IP' : instance.ip_address, 'Region' : instance.region.name, 'Status' : instance.state }
         print "Servers updated"
         return {'ec2' : ec2instances }
 
@@ -224,6 +224,8 @@ class SSHTray(QtGui.QDialog):
                     for instanceName in orderedInstances:
                         instance = data['ec2'][region][group][instanceName]
                         serverAction = QtGui.QAction(instance['Name'],self)
+                        if instance['Status'] != 'running':
+                                serverAction.setDisabled(True)
                         self.connect(serverAction,QtCore.SIGNAL("triggered()"), partial(self.doSSH, instance['IP']))
                         if len(data['ec2'][region]) > 1:
                             serverGroup.addAction(serverAction)
