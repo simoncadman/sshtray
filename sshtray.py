@@ -121,6 +121,8 @@ class SSHTray(QtGui.QDialog):
     
     def __init__(self):
         self.trayIcon = None
+        self.trayIconMenu = None
+        self.ec2Menu = None
         super(SSHTray, self).__init__()
         
         # load settings from config
@@ -200,19 +202,36 @@ class SSHTray(QtGui.QDialog):
 
     # options within tray context menu
     def setupMenuOptions(self, data):
+        if self.trayIconMenu == None:
+                # setup first time round menu
+                self.trayIconMenu = QtGui.QMenu(self)
         
-        self.trayIconMenu = QtGui.QMenu(self)
-        
-        # default data
-        self.settingsAction = QtGui.QAction("&Settings", self,
-                triggered=self.showNormal)
-        self.refreshAction = QtGui.QAction("&Refresh Now", self,
+                # default data
+                self.settingsAction = QtGui.QAction("&Settings", self,
+                        triggered=self.showNormal)
+                self.refreshAction = QtGui.QAction("&Refresh Now", self,
                         triggered=self.refreshNow)
-        self.quitAction = QtGui.QAction("&Quit", self,
-                triggered=QtGui.qApp.quit)
+                self.quitAction = QtGui.QAction("&Quit", self,
+                        triggered=QtGui.qApp.quit)
         
+                # default, need to appear at end of list
+                if self.trayIcon == None:
+                        # first run, add message showing still loading
+                        self.loadingAction = QtGui.QAction("Loading servers...", self)
+                        self.loadingAction.setDisabled(True)
+                        self.trayIconMenu.addAction(self.loadingAction)
+                        
+                        self.firstSeperator = self.trayIconMenu.addSeparator()
+                        self.trayIconMenu.addAction(self.refreshAction)
+                        self.trayIconMenu.addSeparator()
+                        self.trayIconMenu.addAction(self.settingsAction)
+                        self.trayIconMenu.addAction(self.quitAction)
+                        
         # ec2 instances
         if 'ec2' in data and len(data['ec2']) > 0:
+            oldec2MenuAction = None
+            if self.ec2Menu != None:
+                    oldec2MenuAction = self.ec2Menu.menuAction()
             self.ec2Menu = QtGui.QMenu("&EC2", self)
             orderedRegions = []
             # sort regions
@@ -244,8 +263,12 @@ class SSHTray(QtGui.QDialog):
                         
                 if len(data['ec2']) > 1:
                     self.ec2Menu.addMenu(serverRegion)
-                    
-            self.trayIconMenu.addMenu(self.ec2Menu)
+            
+            # remove existing ec2 menu
+            if oldec2MenuAction != None:
+                self.trayIconMenu.removeAction(oldec2MenuAction)
+            
+            self.trayIconMenu.insertMenu( self.firstSeperator , self.ec2Menu)
         
         if 'zeroconf' in data and len(data['zeroconf']) > 0:
             self.discoveredMenu = QtGui.QMenu("&Discovered", self)
@@ -254,25 +277,11 @@ class SSHTray(QtGui.QDialog):
         if 'custom' in data and len(data['custom']) > 0:
             self.customMenu = QtGui.QMenu("&Custom", self)
             self.trayIconMenu.addMenu(self.customMenu)
+
+        if len(data) > 0:
+           if self.loadingAction in self.trayIconMenu.actions():
+                    self.trayIconMenu.removeAction(self.loadingAction)
         
-        # default, need to appear at end of list
-        
-        if self.trayIcon == None:
-            # first run, add message showing still loading
-            self.loadingAction = QtGui.QAction("Loading servers...", self)
-            self.loadingAction.setDisabled(True)
-            self.trayIconMenu.addAction(self.loadingAction)
-        
-        self.trayIconMenu.addSeparator()
-        self.trayIconMenu.addAction(self.refreshAction)
-        self.trayIconMenu.addSeparator()
-        self.trayIconMenu.addAction(self.settingsAction)
-        self.trayIconMenu.addAction(self.quitAction)
-        
-        if self.trayIcon != None:
-            self.trayIcon.setContextMenu(self.trayIconMenu)
-            self.trayIcon.activated.connect(self.iconActivated)
-            
     # tray icon
     def setupTrayIcon(self):
          icon = QtGui.QIcon('sshtray.svg')
