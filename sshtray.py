@@ -223,6 +223,9 @@ class SSHTray(QtGui.QDialog):
                 command=  'gnome-terminal'
                 p = subprocess.Popen([command,'--tab', '-x', 'ssh', '-p' + self.configPort, "-v", self.configUsername + '@' + instance], stdout=subprocess.PIPE)
         result = p.returncode
+        
+    def showAbout(self):
+        print "Showing about"
 
     # options within tray context menu
     def setupMenuOptions(self, data):
@@ -231,6 +234,8 @@ class SSHTray(QtGui.QDialog):
                 self.trayIconMenu = QtGui.QMenu(self)
         
                 # default data
+                self.aboutAction = QtGui.QAction("&About SSHTray", self,
+                        triggered=self.showAbout)
                 self.settingsAction = QtGui.QAction("&Settings", self,
                         triggered=self.showNormal)
                 self.refreshAction = QtGui.QAction("&Refresh Now", self,
@@ -246,6 +251,7 @@ class SSHTray(QtGui.QDialog):
                         self.refreshAction.setText('Updating servers...')
                         self.trayIconMenu.addSeparator()
                         self.trayIconMenu.addAction(self.settingsAction)
+                        self.trayIconMenu.addAction(self.aboutAction)
                         self.trayIconMenu.addAction(self.quitAction)
                         
         # ec2 instances
