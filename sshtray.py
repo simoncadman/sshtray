@@ -37,6 +37,8 @@ class RefreshServers(QtCore.QThread):
         while True:
             if self.window.configEC2AccessId != "" and self.window.configEC2SecretKey != "":
                 try:
+                    self.window.refreshAction.setDisabled(True)
+                    self.window.refreshAction.setText('Updating servers...')
                     data = self.refreshServers()
                     self.window.emit(QtCore.SIGNAL('updateMenu'), data)
                 except Exception as e:
@@ -119,6 +121,8 @@ class SSHTray(QtGui.QDialog):
         self.refreshNow()
 
     def refreshNow(self):
+        self.refreshAction.setDisabled(True)
+        self.refreshAction.setText('Updating servers...')
         self.refresh.emit(QtCore.SIGNAL('runNow') )
         
     def resetSettings(self):
@@ -236,13 +240,10 @@ class SSHTray(QtGui.QDialog):
         
                 # default, need to appear at end of list
                 if self.trayIcon == None:
-                        # first run, add message showing still loading
-                        self.loadingAction = QtGui.QAction("Loading servers...", self)
-                        self.loadingAction.setDisabled(True)
-                        self.trayIconMenu.addAction(self.loadingAction)
-                        
                         self.firstSeperator = self.trayIconMenu.addSeparator()
                         self.trayIconMenu.addAction(self.refreshAction)
+                        self.refreshAction.setDisabled(True)
+                        self.refreshAction.setText('Updating servers...')
                         self.trayIconMenu.addSeparator()
                         self.trayIconMenu.addAction(self.settingsAction)
                         self.trayIconMenu.addAction(self.quitAction)
@@ -298,9 +299,8 @@ class SSHTray(QtGui.QDialog):
             self.customMenu = QtGui.QMenu("&Custom", self)
             self.trayIconMenu.addMenu(self.customMenu)
 
-        if len(data) > 0:
-           if self.loadingAction in self.trayIconMenu.actions():
-                    self.trayIconMenu.removeAction(self.loadingAction)
+        self.refreshAction.setDisabled(False)
+        self.refreshAction.setText('&Refresh Now')
         
     # tray icon
     def setupTrayIcon(self):
