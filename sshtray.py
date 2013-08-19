@@ -24,9 +24,8 @@ from PyQt4 import QtCore
 import boto.ec2
 
 class RefreshServers(QtCore.QThread):
-    def __init__(self, window):
+    def __init__(self):
         self.refreshNow = False
-        self.window = window
         QtCore.QThread.__init__(self)
         self.connect(self, QtCore.SIGNAL('runNow'), self.refreshServersNow)
 
@@ -34,27 +33,29 @@ class RefreshServers(QtCore.QThread):
         self.refreshNow = True
 
     def run(self):
+        global window
         while True:
-            if self.window.configEC2AccessId != "" and self.window.configEC2SecretKey != "":
+            if window.configEC2AccessId != "" and window.configEC2SecretKey != "":
                 try:
-                    self.window.refreshAction.setDisabled(True)
-                    self.window.refreshAction.setText('Updating servers...')
+                    window.refreshAction.setDisabled(True)
+                    window.refreshAction.setText('Updating servers...')
                     data = self.refreshServers()
-                    self.window.emit(QtCore.SIGNAL('updateMenu'), data)
+                    window.emit(QtCore.SIGNAL('updateMenu'), data)
                 except Exception as e:
                     print "Error updating servers"
                     print e
-            for i in range(1,self.window.configSleep):
+            for i in range(1,window.configSleep):
                     if self.refreshNow  == True:
                            self.refreshNow = False
                            break
                     time.sleep(1)
         
     def refreshServers(self):
+        global window
         print "Refreshing servers"
         ec2instances = {}
         for region in [ 'ap-northeast-1', 'ap-southeast-1', 'ap-southeast-2', 'eu-west-1', 'sa-east-1', 'us-east-1' , 'us-west-1', 'us-west-2' ]:
-            ec2_conn = boto.ec2.connect_to_region(region, aws_access_key_id=self.window.configEC2AccessId, aws_secret_access_key=self.window.configEC2SecretKey)
+            ec2_conn = boto.ec2.connect_to_region(region, aws_access_key_id=window.configEC2AccessId, aws_secret_access_key=window.configEC2SecretKey)
             for reservation in ec2_conn.get_all_instances():
                 for instance in reservation.instances:
                     instanceplatform = ""
@@ -68,8 +69,8 @@ class RefreshServers(QtCore.QThread):
                     groupName = 'Other'
                     if 'aws:autoscaling:groupName' in instance.tags:
                         groupName = instance.tags['aws:autoscaling:groupName']
-                    if self.window.configEC2TrayGroupName in instance.tags:
-                        groupName = instance.tags[self.window.configEC2TrayGroupName]
+                    if window.configEC2TrayGroupName in instance.tags:
+                        groupName = instance.tags[window.configEC2TrayGroupName]
                     if groupName not in ec2instances[instance.region.name]:
                         ec2instances[instance.region.name][groupName] = {}
                     ec2instances[instance.region.name][groupName][instance.id] = {'Name': instancename, 'IP' : instance.ip_address, 'Region' : instance.region.name, 'Status' : instance.state }
@@ -123,7 +124,8 @@ class SSHTray(QtGui.QDialog):
     def refreshNow(self):
         self.refreshAction.setDisabled(True)
         self.refreshAction.setText('Updating servers...')
-        self.refresh.emit(QtCore.SIGNAL('runNow') )
+        global refresh
+        refresh.emit(QtCore.SIGNAL('runNow') )
         
     def resetSettings(self):
         self.accountEdit.setText(self.configEC2AccessId)
@@ -138,6 +140,9 @@ class SSHTray(QtGui.QDialog):
         
         # load settings from config
         data = self.loadSettingsFromConfig()
+        
+        # setup about menu
+        self.aboutWindow = QtGui.QDialog()
         
         # setup the settings window
         self.setupSettings()
@@ -225,7 +230,7 @@ class SSHTray(QtGui.QDialog):
         result = p.returncode
         
     def showAbout(self):
-        print "Showing about"
+        self.aboutWindow.showNormal()
 
     # options within tray context menu
     def setupMenuOptions(self, data):
@@ -325,8 +330,9 @@ if __name__ == '__main__':
         
     QtGui.QApplication.setQuitOnLastWindowClosed(False)
     
+    global window
     window = SSHTray()
-    refresh = RefreshServers(window)
-    window.refresh = refresh
+    global refresh
+    refresh = RefreshServers()
     refresh.start()
     sys.exit(app.exec_())
