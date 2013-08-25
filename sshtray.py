@@ -322,6 +322,7 @@ class SSHTray(QtGui.QDialog):
          self.trayIcon.activated.connect(self.iconActivated)
 
 if __name__ == '__main__':
+    QtGui.QApplication.setAttribute(QtCore.Qt.AA_X11InitThreads, True)
     app = QtGui.QApplication(sys.argv)
     
     if not QtGui.QSystemTrayIcon.isSystemTrayAvailable():
