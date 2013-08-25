@@ -14,7 +14,7 @@
 #
 #    You should have received a copy of the GNU General Public License    
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-import sip,sys,os,subprocess,time,getpass,ConfigParser
+import sip,sys,os,subprocess,time,getpass,ConfigParser,pickle
 from functools import partial
 sip.setapi('QVariant', 2)
 
@@ -35,7 +35,7 @@ class RefreshServers(QtCore.QThread):
     def run(self):
         global window
         while True:
-            if window.configEC2AccessId != "" and window.configEC2SecretKey != "":
+            if window.configLoaded == True:
                 try:
                     window.refreshAction.setDisabled(True)
                     window.refreshAction.setText('Updating servers...')
@@ -53,71 +53,102 @@ class RefreshServers(QtCore.QThread):
     def refreshServers(self):
         global window
         print "Refreshing servers"
-        ec2instances = {}
-        for region in [ 'ap-northeast-1', 'ap-southeast-1', 'ap-southeast-2', 'eu-west-1', 'sa-east-1', 'us-east-1' , 'us-west-1', 'us-west-2' ]:
-            ec2_conn = boto.ec2.connect_to_region(region, aws_access_key_id=window.configEC2AccessId, aws_secret_access_key=window.configEC2SecretKey)
-            for reservation in ec2_conn.get_all_instances():
-                for instance in reservation.instances:
-                    instanceplatform = ""
-                    if instance.platform != None:
-                        instanceplatform = instance.platform
-                    instancename = "Unknown " + instanceplatform + " Instance " + instance.id
-                    if 'Name' in instance.tags:
-                        instancename = instance.tags['Name']
-                    if instance.region.name not in ec2instances:
-                        ec2instances[instance.region.name] = {}
-                    groupName = 'Other'
-                    if 'aws:autoscaling:groupName' in instance.tags:
-                        groupName = instance.tags['aws:autoscaling:groupName']
-                    if window.configEC2TrayGroupName in instance.tags:
-                        groupName = instance.tags[window.configEC2TrayGroupName]
-                    if groupName not in ec2instances[instance.region.name]:
-                        ec2instances[instance.region.name][groupName] = {}
-                    ec2instances[instance.region.name][groupName][instance.id] = {'Name': instancename, 'IP' : instance.ip_address, 'Region' : instance.region.name, 'Status' : instance.state }
+        accounts = {}
+        for accountName in window.accountsList:
+            print accountName, "updating"
+            ec2instances = {}
+            for region in [ 'ap-northeast-1', 'ap-southeast-1', 'ap-southeast-2', 'eu-west-1', 'sa-east-1', 'us-east-1' , 'us-west-1', 'us-west-2' ]:
+                ec2_conn = boto.ec2.connect_to_region(region, aws_access_key_id=window.accountsList[accountName]['EC2AccessId'], aws_secret_access_key=window.accountsList[accountName]['EC2SecretKey'])
+                for reservation in ec2_conn.get_all_instances():
+                    for instance in reservation.instances:
+                        instanceplatform = ""
+                        if instance.platform != None:
+                            instanceplatform = instance.platform
+                        instancename = "Unknown " + instanceplatform + " Instance " + instance.id
+                        if 'Name' in instance.tags:
+                            instancename = instance.tags['Name']
+                        if instance.region.name not in ec2instances:
+                            ec2instances[instance.region.name] = {}
+                        groupName = 'Other'
+                        if 'aws:autoscaling:groupName' in instance.tags:
+                            groupName = instance.tags['aws:autoscaling:groupName']
+                        if window.configEC2TrayGroupName in instance.tags:
+                            groupName = instance.tags[window.configEC2TrayGroupName]
+                        if groupName not in ec2instances[instance.region.name]:
+                            ec2instances[instance.region.name][groupName] = {}
+                        ec2instances[instance.region.name][groupName][instance.id] = {'Name': instancename, 'IP' : instance.ip_address, 'Region' : instance.region.name, 'Status' : instance.state }
+            accounts[accountName] = { 'instances' : ec2instances }
+            print accountName, "updated"
         print "Servers updated"
-        return {'ec2' : ec2instances }
+        return {'ec2' : accounts }
 
 class SSHTray(QtGui.QDialog):
     
     # loads config file, returns menu items
     def loadSettingsFromConfig(self):
+        self.configLoaded = False
         self.appName = "sshtray"
         self.configFile = os.path.expanduser('~/.' + self.appName)
         
         # default settings
-        self.configEC2AccessId = ""
-        self.configEC2SecretKey = ""
         self.configPort = str(22)
         self.configUsername = getpass.getuser()
         self.configSleep = 300
         self.configEC2TrayGroupName = 'TrayGroupName'
-
+        self.accountsList = {}
+        
         # load from file
         if os.path.exists(self.configFile):
             try:
                 config = ConfigParser.ConfigParser()
                 config.readfp(open(self.configFile))
+                
                 if config.has_section('ec2'):
-                        self.configEC2AccessId = config.get('ec2', 'accessid')
-                        self.configEC2SecretKey = config.get('ec2', 'secretkey')
+                        self.accountsList = { 'Default' : { 'EC2AccessId' : config.get('ec2', 'accessid'), 'EC2SecretKey' : config.get('ec2', 'secretkey') } }
+                        
+                if config.has_section('ec2_accounts'):
+                        self.accountsList = pickle.loads(config.get('ec2_accounts', 'details'))
+                        
                 if config.has_section('global'):
                         self.configUsername = config.get('global', 'username')
+                        
+                self.configLoaded = True
             except:
                 pass
-            
+        
         return []
     
     def saveSettings(self):
-        self.configEC2AccessId = str(self.accountEdit.text())
-        self.configEC2SecretKey = str(self.secretEdit.text())
+        self.configLoaded = True
         self.configUsername = str(self.usernameEdit.text())
         config = ConfigParser.ConfigParser()
         config.add_section('global')
         config.set('global', 'username', self.configUsername )
-
-        config.add_section('ec2')
-        config.set('ec2', 'accessid', self.configEC2AccessId )
-        config.set('ec2', 'secretkey', self.configEC2SecretKey )
+        
+        config.add_section('ec2_accounts')
+        self.accountsList = {}
+        for tab in range(0,len(self.ec2AccountTabWidget)):
+            tabWidget = self.ec2AccountTabWidget.widget(tab)
+            layout = tabWidget.layout()
+            accountName = ''
+            EC2AccessId = ''
+            EC2SecretKey = ''
+            for widgetItem in range(0,len(layout)):
+                widget = layout.itemAt(widgetItem)
+                actualWidget = widget.widget()
+                
+                if actualWidget.__class__.__name__ == 'QLineEdit':
+                    if actualWidget.objectName() == "AccountName":
+                        accountName = str(actualWidget.text())
+                        
+                    if actualWidget.objectName() == "EC2AccessId":
+                        EC2AccessId = str(actualWidget.text())
+                        
+                    if actualWidget.objectName() == "EC2SecretKey":
+                        EC2SecretKey = str(actualWidget.text())
+                    
+            self.accountsList[accountName] = { 'EC2AccessId' : EC2AccessId, 'EC2SecretKey' : EC2SecretKey }
+        config.set('ec2_accounts', 'details', pickle.dumps(self.accountsList) )
         config.write(open(self.configFile,'w'))
         self.refreshNow()
 
@@ -128,9 +159,21 @@ class SSHTray(QtGui.QDialog):
         refresh.emit(QtCore.SIGNAL('runNow') )
         
     def resetSettings(self):
-        self.accountEdit.setText(self.configEC2AccessId)
-        self.secretEdit.setText(self.configEC2SecretKey)
         self.usernameEdit.setText(self.configUsername)
+        
+        # delete any existing tabs
+        for tab in range(0,len(self.ec2AccountTabWidget)):
+            self.ec2AccountTabWidget.removeTab(0)
+        
+        # actually allow users with no accounts to add initial account
+        if len(self.accountsList) == 0:
+            self.accountsList = { 'Default' : { 'EC2AccessId' : '', 'EC2SecretKey' : '' } }
+        
+        for accountName in self.accountsList:
+            self.addEC2AccountTab(accountName , self.accountsList[accountName])
+        
+        # default to first tab
+        self.ec2AccountTabWidget.setCurrentIndex(0)
     
     def __init__(self):
         self.trayIcon = None
@@ -157,7 +200,7 @@ class SSHTray(QtGui.QDialog):
         # all setup, show the tray icon
         self.trayIcon.show()
         
-        if self.configEC2AccessId == "" or self.configEC2SecretKey == "":
+        if not self.configLoaded:
             self.showNormal()
 
     # user clicked tray, show menu
@@ -173,6 +216,52 @@ class SSHTray(QtGui.QDialog):
         self.hide()
         self.resetSettings()
 
+    def addEC2AccountTabButton ( self ):
+        self.addEC2AccountTab('New', { 'EC2AccessId' : '', 'EC2SecretKey' : '' } )
+
+    def removeEC2AccountTabButton ( self ):
+        if self.ec2AccountTabWidget.count() > 1:
+            selectedIndex = self.ec2AccountTabWidget.currentIndex()
+            self.ec2AccountTabWidget.removeTab(selectedIndex)
+    
+    def updateEC2AccountTabName( self, text ):
+        selectedIndex = self.ec2AccountTabWidget.currentIndex()
+        self.ec2AccountTabWidget.setTabText(selectedIndex,text)
+    
+    def addEC2AccountTab ( self, accountName, details ):
+        accountNameLabel = QtGui.QLabel("Account Name:")
+        accountNameEdit = QtGui.QLineEdit()
+        accountNameEdit.setText(accountName)
+        accountNameEdit.setObjectName('AccountName')
+        accountNameEdit.textChanged.connect(self.updateEC2AccountTabName)
+        
+        accountLabel = QtGui.QLabel("Access Key ID:")
+        accountEdit = QtGui.QLineEdit()
+        accountEdit.setObjectName('EC2AccessId')
+        accountEdit.setText(details['EC2AccessId'])
+
+        secretLabel = QtGui.QLabel("Secret Access Key:")
+        secretEdit = QtGui.QLineEdit()
+        secretEdit.setObjectName('EC2SecretKey')
+        secretEdit.setText(details['EC2SecretKey'])
+        secretEdit.setMinimumWidth(350)
+        
+        self.ec2AccountWidget = QtGui.QWidget()
+        ec2Layout = QtGui.QGridLayout()
+        
+        ec2Layout.addWidget(accountNameLabel, 0, 0)
+        ec2Layout.addWidget(accountNameEdit, 0, 1)
+        
+        ec2Layout.addWidget(accountLabel, 1, 0)
+        ec2Layout.addWidget(accountEdit, 1, 1)
+        
+        ec2Layout.addWidget(secretLabel, 2, 0)
+        ec2Layout.addWidget(secretEdit, 2, 1)
+        
+        self.ec2AccountWidget.setLayout(ec2Layout)
+        newTabIndex = self.ec2AccountTabWidget.addTab(self.ec2AccountWidget, accountName)
+        self.ec2AccountTabWidget.setCurrentIndex(newTabIndex)
+
     # settings window
     def setupSettings(self):
         
@@ -184,16 +273,22 @@ class SSHTray(QtGui.QDialog):
         self.usernameEdit = QtGui.QLineEdit()
         self.globalGroupBox.addWidget(usernameLabel, 0, 0)
         self.globalGroupBox.addWidget(self.usernameEdit, 0, 1)
-
         self.globalSettingsGroupBox.setLayout(self.globalGroupBox)
         
         self.messageGroupBox = QtGui.QGroupBox("Amazon EC2")
-
-        accountLabel = QtGui.QLabel("Access Key ID:")
-        self.accountEdit = QtGui.QLineEdit()
-
-        secretLabel = QtGui.QLabel("Secret Access Key:")
-        self.secretEdit = QtGui.QLineEdit()
+        self.ec2AccountTabWidget = QtGui.QTabWidget()
+        addEC2TabButton = QtGui.QPushButton("+")
+        addEC2TabButton.clicked.connect(self.addEC2AccountTabButton)
+        self.ec2AccountTabWidget.setCornerWidget(addEC2TabButton, QtCore.Qt.TopLeftCorner)
+        
+        removeTabButton = QtGui.QPushButton("-")
+        removeTabButton.clicked.connect(self.removeEC2AccountTabButton)
+        self.ec2AccountTabWidget.setCornerWidget(removeTabButton, QtCore.Qt.TopRightCorner)
+        
+        # save and cancel buttons
+        footerGroupBox = QtGui.QGroupBox()
+        footerLayout = QtGui.QHBoxLayout()
+        footerGroupBox.setLayout(footerLayout)
         
         self.saveButton = QtGui.QPushButton("&Save")
         self.saveButton.setDefault(True)
@@ -201,19 +296,14 @@ class SSHTray(QtGui.QDialog):
         
         self.cancelButton = QtGui.QPushButton("&Cancel")
         self.cancelButton.clicked.connect(self.cancelSettingsButton)
-
-        ec2Layout = QtGui.QGridLayout()
-        ec2Layout.addWidget(accountLabel, 0, 0)
-        ec2Layout.addWidget(self.accountEdit, 0, 1)
-        ec2Layout.addWidget(secretLabel, 1, 0)
-        ec2Layout.addWidget(self.secretEdit, 1, 1)
-        ec2Layout.addWidget(self.saveButton, 2, 0)
-        ec2Layout.addWidget(self.cancelButton, 2, 1)
-        self.messageGroupBox.setLayout(ec2Layout)
+        
+        footerLayout.addWidget(self.saveButton)
+        footerLayout.addWidget(self.cancelButton)
         
         mainLayout = QtGui.QVBoxLayout()
         mainLayout.addWidget(self.globalSettingsGroupBox)
-        mainLayout.addWidget(self.messageGroupBox)
+        mainLayout.addWidget(self.ec2AccountTabWidget)
+        mainLayout.addWidget(footerGroupBox)
         self.setLayout(mainLayout)
         
         self.resetSettings()
@@ -265,37 +355,53 @@ class SSHTray(QtGui.QDialog):
             if self.ec2Menu != None:
                     oldec2MenuAction = self.ec2Menu.menuAction()
             self.ec2Menu = QtGui.QMenu("&EC2", self)
-            orderedRegions = []
-            # sort regions
-            orderedRegions = sorted(data['ec2'])
-            for region in orderedRegions:
-                serverRegion = QtGui.QMenu(region,self)
-                orderedGroups = sorted(data['ec2'][region])
-                for group in orderedGroups:
-                    serverGroup = QtGui.QMenu(group,self)
-                    orderedInstances = sorted(data['ec2'][region][group],key=lambda instanceItem: str.lower(str(data['ec2'][region][group][instanceItem]['Name'])))
-                    for instanceName in orderedInstances:
-                        instance = data['ec2'][region][group][instanceName]
-                        serverAction = QtGui.QAction(instance['Name'],self)
-                        if instance['Status'] != 'running':
-                                serverAction.setDisabled(True)
-                        self.connect(serverAction,QtCore.SIGNAL("triggered()"), partial(self.doSSH, instance['IP']))
-                        if len(data['ec2'][region]) > 1:
-                            serverGroup.addAction(serverAction)
-                        else:
-                            if len(data['ec2']) > 1:
-                                serverRegion.addAction(serverAction)
-                            else:
-                                self.ec2Menu.addAction(serverAction)
-                    if len(data['ec2'][region]) > 1:
-                        if len(data['ec2']) > 1:
-                            serverRegion.addMenu(serverGroup)
-                        else:
-                            self.ec2Menu.addMenu(serverGroup)
-                        
-                if len(data['ec2']) > 1:
-                    self.ec2Menu.addMenu(serverRegion)
+            orderedAccounts = []
+            orderedAccounts = sorted(data['ec2'])
             
+            for orderedAccount in orderedAccounts:
+                accountMenu = QtGui.QMenu(orderedAccount, self)
+                
+                orderedRegions = []
+                # sort regions
+                orderedRegions = sorted(data['ec2'][orderedAccount]['instances'])
+                for region in orderedRegions:
+                    serverRegion = QtGui.QMenu(region,self)
+                    orderedGroups = sorted(data['ec2'][orderedAccount]['instances'][region])
+                    for group in orderedGroups:
+                        serverGroup = QtGui.QMenu(group,self)
+                        orderedInstances = sorted(data['ec2'][orderedAccount]['instances'][region][group],key=lambda instanceItem: str.lower(str(data['ec2'][orderedAccount]['instances'][region][group][instanceItem]['Name'])))
+                        for instanceName in orderedInstances:
+                            instance = data['ec2'][orderedAccount]['instances'][region][group][instanceName]
+                            serverAction = QtGui.QAction(instance['Name'],self)
+                            if instance['Status'] != 'running':
+                                    serverAction.setDisabled(True)
+                            self.connect(serverAction,QtCore.SIGNAL("triggered()"), partial(self.doSSH, instance['IP']))
+                            if len(data['ec2'][orderedAccount]['instances'][region]) > 1:
+                                serverGroup.addAction(serverAction)
+                            else:
+                                if len(data['ec2'][orderedAccount]['instances']) > 1:
+                                    serverRegion.addAction(serverAction)
+                                else:
+                                    if len(data['ec2']) > 1:
+                                        self.ec2Menu.addMenu(accountMenu)
+                                        accountMenu.addAction(serverAction)
+                                    else:
+                                        self.ec2Menu.addAction(serverAction)
+                                        
+                        if len(data['ec2'][orderedAccount]['instances'][region]) > 1:
+                            if len(data['ec2'][orderedAccount]['instances']) > 1:
+                                serverRegion.addMenu(serverGroup)
+                            else:
+                                self.ec2Menu.addMenu(serverGroup)
+                            
+                    if len(data['ec2'][orderedAccount]['instances']) > 1:
+                        if len(data['ec2']) > 1:
+                            self.ec2Menu.addMenu(accountMenu)
+                            accountMenu.addMenu(serverRegion)
+                        else:
+                            self.ec2Menu.addMenu(serverRegion)
+                        
+                self.trayIconMenu.insertMenu( self.firstSeperator , self.ec2Menu)
             # remove existing ec2 menu
             if oldec2MenuAction != None:
                 self.trayIconMenu.removeAction(oldec2MenuAction)
