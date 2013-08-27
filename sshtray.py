@@ -392,13 +392,17 @@ class SSHTray(QtGui.QDialog):
                             if len(data['ec2'][orderedAccount]['instances']) > 1:
                                 serverRegion.addMenu(serverGroup)
                             else:
-                                self.ec2Menu.addMenu(serverGroup)
-                            
-                    if len(data['ec2'][orderedAccount]['instances']) > 1:
-                        if len(data['ec2']) > 1:
-                            self.ec2Menu.addMenu(accountMenu)
+                                if len(data['ec2']) > 1:
+                                    accountMenu.addMenu(serverGroup)
+                                else:
+                                    self.ec2Menu.addMenu(serverGroup)
+                    
+                    if len(data['ec2']) > 1:
+                        self.ec2Menu.addMenu(accountMenu)
+                        if len(data['ec2'][orderedAccount]['instances']) > 1:
                             accountMenu.addMenu(serverRegion)
-                        else:
+                    else:
+                        if len(data['ec2'][orderedAccount]['instances']) > 1:
                             self.ec2Menu.addMenu(serverRegion)
                         
                 self.trayIconMenu.insertMenu( self.firstSeperator , self.ec2Menu)
