@@ -354,25 +354,27 @@ class SSHTray(QtGui.QDialog):
             oldec2MenuAction = None
             if self.ec2Menu != None:
                     oldec2MenuAction = self.ec2Menu.menuAction()
-            self.ec2Menu = QtGui.QMenu("&EC2", self)
+                    self.ec2Menu.clear()
+            else:
+                self.ec2Menu = QtGui.QMenu("&EC2", self)
             orderedAccounts = []
             orderedAccounts = sorted(data['ec2'])
             
             for orderedAccount in orderedAccounts:
-                accountMenu = QtGui.QMenu(orderedAccount, self)
+                accountMenu = QtGui.QMenu(orderedAccount, self.ec2Menu)
                 
                 orderedRegions = []
                 # sort regions
                 orderedRegions = sorted(data['ec2'][orderedAccount]['instances'])
                 for region in orderedRegions:
-                    serverRegion = QtGui.QMenu(region,self)
+                    serverRegion = QtGui.QMenu(region,self.ec2Menu)
                     orderedGroups = sorted(data['ec2'][orderedAccount]['instances'][region])
                     for group in orderedGroups:
-                        serverGroup = QtGui.QMenu(group,self)
+                        serverGroup = QtGui.QMenu(group,self.ec2Menu)
                         orderedInstances = sorted(data['ec2'][orderedAccount]['instances'][region][group],key=lambda instanceItem: str.lower(str(data['ec2'][orderedAccount]['instances'][region][group][instanceItem]['Name'])))
                         for instanceName in orderedInstances:
                             instance = data['ec2'][orderedAccount]['instances'][region][group][instanceName]
-                            serverAction = QtGui.QAction(instance['Name'],self)
+                            serverAction = QtGui.QAction(instance['Name'],self.ec2Menu)
                             if instance['Status'] != 'running':
                                     serverAction.setDisabled(True)
                             self.connect(serverAction,QtCore.SIGNAL("triggered()"), partial(self.doSSH, instance['IP']))
