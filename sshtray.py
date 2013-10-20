@@ -23,6 +23,9 @@ from PyQt4 import QtCore
 
 import boto.ec2
 
+# line below is replaced on commit
+SSHTrayVersion = "20131020 224640"
+
 class RefreshServers(QtCore.QThread):
     def __init__(self):
         self.refreshNow = False
