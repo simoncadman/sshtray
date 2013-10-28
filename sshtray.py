@@ -24,7 +24,7 @@ from PyQt4 import QtCore
 import boto.ec2
 
 # line below is replaced on commit
-SSHTrayVersion = "20131020 224640"
+SSHTrayVersion = "20131028 221527"
 
 class RefreshServers(QtCore.QThread):
     def __init__(self):
@@ -114,6 +114,8 @@ class SSHTray(QtGui.QDialog):
                         
                 if config.has_section('global'):
                         self.configUsername = config.get('global', 'username')
+                        if config.has_option('global', 'PreRunScript'):
+                            self.preRunScript = config.get('global', 'PreRunScript')
                         
                 self.configLoaded = True
             except:
@@ -124,9 +126,11 @@ class SSHTray(QtGui.QDialog):
     def saveSettings(self):
         self.configLoaded = True
         self.configUsername = str(self.usernameEdit.text())
+        self.preRunScript = str(self.runScriptEdit.text())
         config = ConfigParser.ConfigParser()
         config.add_section('global')
         config.set('global', 'username', self.configUsername )
+        config.set('global', 'PreRunScript', self.preRunScript )
         
         config.add_section('ec2_accounts')
         self.accountsList = {}
@@ -182,6 +186,8 @@ class SSHTray(QtGui.QDialog):
         self.trayIcon = None
         self.trayIconMenu = None
         self.ec2Menu = None
+        self.preRunScript = None
+        
         super(SSHTray, self).__init__()
         
         # load settings from config
@@ -278,6 +284,12 @@ class SSHTray(QtGui.QDialog):
         self.globalGroupBox.addWidget(self.usernameEdit, 0, 1)
         self.globalSettingsGroupBox.setLayout(self.globalGroupBox)
         
+        runScriptLabel = QtGui.QLabel("Run Script Before Connecting:")
+        self.runScriptEdit = QtGui.QLineEdit()
+        self.globalGroupBox.addWidget(runScriptLabel, 1, 0)
+        self.globalGroupBox.addWidget(self.runScriptEdit, 1, 1)
+        self.globalSettingsGroupBox.setLayout(self.globalGroupBox)
+        
         self.messageGroupBox = QtGui.QGroupBox("Amazon EC2")
         self.ec2AccountTabWidget = QtGui.QTabWidget()
         addEC2TabButton = QtGui.QPushButton("+")
@@ -315,6 +327,9 @@ class SSHTray(QtGui.QDialog):
         print "SSHing",instance
         result = 0
         command = "konsole"
+        if self.preRunScript != None:
+            p2 = subprocess.Popen([self.preRunScript, instance])
+            p2.wait()
         if os.environ.get('KDE_FULL_SESSION') == 'true':
                 p = subprocess.Popen([command, '--new-tab','-e', 'ssh', '-p' + self.configPort, "-v", self.configUsername + '@' + instance], stdout=subprocess.PIPE)
         elif os.environ.get('GNOME_DESKTOP_SESSION_ID'):
