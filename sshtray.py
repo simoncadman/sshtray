@@ -24,7 +24,7 @@ from PyQt4 import QtCore
 import boto.ec2
 
 # line below is replaced on commit
-SSHTrayVersion = "20131028 221527"
+SSHTrayVersion = "20131029 183857"
 
 class RefreshServers(QtCore.QThread):
     def __init__(self):
@@ -167,6 +167,7 @@ class SSHTray(QtGui.QDialog):
         
     def resetSettings(self):
         self.usernameEdit.setText(self.configUsername)
+        self.runScriptEdit.setText(self.preRunScript)
         
         # delete any existing tabs
         for tab in range(0,len(self.ec2AccountTabWidget)):
