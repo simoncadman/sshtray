@@ -24,7 +24,7 @@ from PyQt4 import QtCore
 import boto.ec2
 
 # line below is replaced on commit
-SSHTrayVersion = "20131029 183857"
+SSHTrayVersion = "20131129 220317"
 
 class RefreshServers(QtCore.QThread):
     def __init__(self):
@@ -187,7 +187,7 @@ class SSHTray(QtGui.QDialog):
         self.trayIcon = None
         self.trayIconMenu = None
         self.ec2Menu = None
-        self.preRunScript = None
+        self.preRunScript = ""
         
         super(SSHTray, self).__init__()
         
@@ -328,7 +328,7 @@ class SSHTray(QtGui.QDialog):
         print "SSHing",instance
         result = 0
         command = "konsole"
-        if self.preRunScript != None:
+        if self.preRunScript != None and self.preRunScript != "":
             p2 = subprocess.Popen([self.preRunScript, instance])
             p2.wait()
         if os.environ.get('KDE_FULL_SESSION') == 'true':
