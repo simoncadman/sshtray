@@ -24,7 +24,7 @@ from PyQt4 import QtCore
 import boto.ec2
 
 # line below is replaced on commit
-SSHTrayVersion = "20131129 220317"
+SSHTrayVersion = "20131129 221222"
 
 class RefreshServers(QtCore.QThread):
     def __init__(self):
@@ -125,8 +125,8 @@ class SSHTray(QtGui.QDialog):
     
     def saveSettings(self):
         self.configLoaded = True
-        self.configUsername = str(self.usernameEdit.text())
-        self.preRunScript = str(self.runScriptEdit.text())
+        self.configUsername = str(self.usernameEdit.text()).strip()
+        self.preRunScript = str(self.runScriptEdit.text()).strip()
         config = ConfigParser.ConfigParser()
         config.add_section('global')
         config.set('global', 'username', self.configUsername )
@@ -146,13 +146,13 @@ class SSHTray(QtGui.QDialog):
                 
                 if actualWidget.__class__.__name__ == 'QLineEdit':
                     if actualWidget.objectName() == "AccountName":
-                        accountName = str(actualWidget.text())
+                        accountName = str(actualWidget.text()).strip()
                         
                     if actualWidget.objectName() == "EC2AccessId":
-                        EC2AccessId = str(actualWidget.text())
+                        EC2AccessId = str(actualWidget.text()).strip()
                         
                     if actualWidget.objectName() == "EC2SecretKey":
-                        EC2SecretKey = str(actualWidget.text())
+                        EC2SecretKey = str(actualWidget.text()).strip()
                     
             self.accountsList[accountName] = { 'EC2AccessId' : EC2AccessId, 'EC2SecretKey' : EC2SecretKey }
         config.set('ec2_accounts', 'details', pickle.dumps(self.accountsList) )
