@@ -24,7 +24,7 @@ from PyQt4 import QtCore
 import boto.ec2
 
 # line below is replaced on commit
-SSHTrayVersion = "20131129 221222"
+SSHTrayVersion = "20140524 183825"
 
 class RefreshServers(QtCore.QThread):
     def __init__(self):
@@ -372,10 +372,10 @@ class SSHTray(QtGui.QDialog):
         if 'ec2' in data and len(data['ec2']) > 0:
             oldec2MenuAction = None
             if self.ec2Menu != None:
-                    oldec2MenuAction = self.ec2Menu.menuAction()
+                    self.trayIconMenu.removeAction(self.ec2Menu.menuAction())
                     self.ec2Menu.clear()
-            else:
-                self.ec2Menu = QtGui.QMenu("&EC2", self)
+                    sip.delete(self.ec2Menu)
+            self.ec2Menu = QtGui.QMenu("&EC2", self)
             orderedAccounts = []
             orderedAccounts = sorted(data['ec2'])
             
@@ -427,9 +427,6 @@ class SSHTray(QtGui.QDialog):
                             self.ec2Menu.addMenu(serverRegion)
                         
                 self.trayIconMenu.insertMenu( self.firstSeperator , self.ec2Menu)
-            # remove existing ec2 menu
-            if oldec2MenuAction != None:
-                self.trayIconMenu.removeAction(oldec2MenuAction)
             
             self.trayIconMenu.insertMenu( self.firstSeperator , self.ec2Menu)
         
