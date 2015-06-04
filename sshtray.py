@@ -24,7 +24,7 @@ from PyQt4 import QtCore
 import boto.ec2
 
 # line below is replaced on commit
-SSHTrayVersion = "20150604 215020"
+SSHTrayVersion = "20150604 223402"
 
 class RefreshServers(QtCore.QThread):
     def __init__(self):
@@ -79,7 +79,10 @@ class RefreshServers(QtCore.QThread):
                             groupName = instance.tags[window.configEC2TrayGroupName]
                         if groupName not in ec2instances[instance.region.name]:
                             ec2instances[instance.region.name][groupName] = {}
-                        ec2instances[instance.region.name][groupName][instance.id] = {'Name': instancename, 'IP' : instance.ip_address, 'Region' : instance.region.name, 'Status' : instance.state }
+                        username = None
+                        if 'username' in instance.tags and instance.tags['username'] != "":
+                            username = instance.tags['username']
+                        ec2instances[instance.region.name][groupName][instance.id] = {'Name': instancename, 'IP' : instance.ip_address, 'Region' : instance.region.name, 'Status' : instance.state, 'username': username }
             accounts[accountName] = { 'instances' : ec2instances }
             print accountName, "updated"
         print "Servers updated"
@@ -325,17 +328,20 @@ class SSHTray(QtGui.QDialog):
         self.resetSettings()
 
     def doSSH(self, instance):
-        print "SSHing",instance
+        print "SSHing",instance['IP']
         result = 0
         command = "konsole"
         if self.preRunScript != None and self.preRunScript != "":
-            p2 = subprocess.Popen([self.preRunScript, instance])
+            p2 = subprocess.Popen([self.preRunScript, instance['IP']])
             p2.wait()
+        username = self.configUsername
+        if instance['username'] != None:
+            username = instance['username']
         if os.environ.get('KDE_FULL_SESSION') == 'true':
-                p = subprocess.Popen([command, '--new-tab','-e', 'ssh', '-p' + self.configPort, "-v", self.configUsername + '@' + instance], stdout=subprocess.PIPE)
+                p = subprocess.Popen([command, '--new-tab','-e', 'ssh', '-p' + self.configPort, "-v", username + '@' + instance['IP']], stdout=subprocess.PIPE)
         elif os.environ.get('GNOME_DESKTOP_SESSION_ID'):
                 command=  'gnome-terminal'
-                p = subprocess.Popen([command,'--tab', '-x', 'ssh', '-p' + self.configPort, "-v", self.configUsername + '@' + instance], stdout=subprocess.PIPE)
+                p = subprocess.Popen([command,'--tab', '-x', 'ssh', '-p' + self.configPort, "-v", username + '@' + instance['IP']], stdout=subprocess.PIPE)
         result = p.returncode
         
     def showAbout(self):
@@ -396,7 +402,7 @@ class SSHTray(QtGui.QDialog):
                             serverAction = QtGui.QAction(instance['Name'],self.ec2Menu)
                             if instance['Status'] != 'running':
                                     serverAction.setDisabled(True)
-                            self.connect(serverAction,QtCore.SIGNAL("triggered()"), partial(self.doSSH, instance['IP']))
+                            self.connect(serverAction,QtCore.SIGNAL("triggered()"), partial(self.doSSH, instance))
                             if len(data['ec2'][orderedAccount]['instances'][region]) > 1:
                                 serverGroup.addAction(serverAction)
                             else:
