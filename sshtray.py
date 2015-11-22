@@ -24,7 +24,7 @@ from PyQt4 import QtCore
 import boto.ec2
 
 # line below is replaced on commit
-SSHTrayVersion = "20151122 141348"
+SSHTrayVersion = "20151122 145212"
 
 class RefreshServers(QtCore.QThread):
     def __init__(self):
@@ -84,6 +84,8 @@ class RefreshServers(QtCore.QThread):
                         if groupName not in ec2instances[instance.region.name]:
                             ec2instances[instance.region.name][groupName] = {}
                         username = None
+                        if 'elasticbeanstalk:environment-name' in instance.tags:
+                            username = 'ec2-user'
                         if 'username' in instance.tags and instance.tags['username'] != "":
                             username = instance.tags['username']
                         ec2instances[instance.region.name][groupName][instance.id] = {'Name': instancename, 'IP' : instance.ip_address, 'Region' : instance.region.name, 'Status' : instance.state, 'username': username }
