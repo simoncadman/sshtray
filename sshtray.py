@@ -24,7 +24,7 @@ from PyQt4 import QtCore
 import boto.ec2
 
 # line below is replaced on commit
-SSHTrayVersion = "20151122 145212"
+SSHTrayVersion = "20151130 185726"
 
 class RefreshServers(QtCore.QThread):
     def __init__(self):
@@ -333,6 +333,11 @@ class SSHTray(QtGui.QDialog):
         
         self.resetSettings()
 
+    def copyIPToClipboard(self, instance):
+        print "Adding",instance['IP'],"to clipboard"
+        clipboard = QtGui.QApplication.clipboard()
+        clipboard.setText(instance['IP'])
+
     def doSSH(self, instance):
         print "SSHing",instance['IP']
         result = 0
@@ -408,7 +413,10 @@ class SSHTray(QtGui.QDialog):
                             serverAction = QtGui.QAction(instance['Name'],self.ec2Menu)
                             if instance['Status'] != 'running':
                                     serverAction.setDisabled(True)
-                            self.connect(serverAction,QtCore.SIGNAL("triggered()"), partial(self.doSSH, instance))
+                            if len(sys.argv) > 1 and sys.argv[1] == 'copy':
+                                self.connect(serverAction,QtCore.SIGNAL("triggered()"), partial(self.copyIPToClipboard, instance))
+                            else:
+                               self.connect(serverAction,QtCore.SIGNAL("triggered()"), partial(self.doSSH, instance))
                             if len(data['ec2'][orderedAccount]['instances'][region]) > 1:
                                 serverGroup.addAction(serverAction)
                             else:
