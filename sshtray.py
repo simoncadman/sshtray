@@ -24,7 +24,7 @@ from PyQt4 import QtCore
 import boto.ec2
 
 # line below is replaced on commit
-SSHTrayVersion = "20151130 185726"
+SSHTrayVersion = "20160331 153105"
 
 class RefreshServers(QtCore.QThread):
     def __init__(self):
@@ -58,11 +58,18 @@ class RefreshServers(QtCore.QThread):
         print "Refreshing servers"
         accounts = {}
         for accountName in window.accountsList:
-            print accountName, "updating"
             ec2instances = {}
-            for region in [ 'ap-northeast-1', 'ap-southeast-1', 'ap-southeast-2', 'eu-west-1', 'sa-east-1', 'us-east-1' , 'us-west-1', 'us-west-2' ]:
+            for regionDetail in boto.ec2.regions(aws_access_key_id=window.accountsList[accountName]['EC2AccessId'], aws_secret_access_key=window.accountsList[accountName]['EC2SecretKey']):
+                region = regionDetail.name
+                print accountName, "updating", region
                 ec2_conn = boto.ec2.connect_to_region(region, aws_access_key_id=window.accountsList[accountName]['EC2AccessId'], aws_secret_access_key=window.accountsList[accountName]['EC2SecretKey'])
-                for reservation in ec2_conn.get_all_instances():
+                instances = []
+                try:
+                    instances = ec2_conn.get_all_instances()
+                except:
+                    print "Unable to connect to", accountName, region
+
+                for reservation in instances:
                     for instance in reservation.instances:
                         instanceplatform = ""
                         if instance.platform != None:
