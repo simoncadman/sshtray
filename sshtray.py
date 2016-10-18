@@ -14,7 +14,7 @@
 #
 #    You should have received a copy of the GNU General Public License    
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-import sip,sys,os,subprocess,time,getpass,ConfigParser,pickle
+import sip,sys,os,subprocess,time,getpass,ConfigParser,pickle,pipes
 from functools import partial
 sip.setapi('QVariant', 2)
 
@@ -24,7 +24,7 @@ from PyQt4 import QtCore
 import boto.ec2
 
 # line below is replaced on commit
-SSHTrayVersion = "20160331 153105"
+SSHTrayVersion = "20161018 201149"
 
 class RefreshServers(QtCore.QThread):
     def __init__(self):
@@ -356,10 +356,10 @@ class SSHTray(QtGui.QDialog):
         if instance['username'] != None:
             username = instance['username']
         if os.environ.get('KDE_FULL_SESSION') == 'true':
-                p = subprocess.Popen([command, '--new-tab','-e', 'ssh', '-p' + self.configPort, "-v", username + '@' + instance['IP']], stdout=subprocess.PIPE)
+                p = subprocess.Popen([command, '--new-tab','-e', 'ssh -p' + self.configPort + " -v " + pipes.quote(username + '@' + instance['IP'])], stdout=subprocess.PIPE)
         elif os.environ.get('GNOME_DESKTOP_SESSION_ID'):
                 command=  'gnome-terminal'
-                p = subprocess.Popen([command,'--tab', '-x', 'ssh', '-p' + self.configPort, "-v", username + '@' + instance['IP']], stdout=subprocess.PIPE)
+                p = subprocess.Popen([command,'--tab', '-x', 'ssh -p' + self.configPort + " -v " + pipes.quote(username + '@' + instance['IP'])], stdout=subprocess.PIPE)
         result = p.returncode
         
     def showAbout(self):
