@@ -24,7 +24,7 @@ from PyQt4 import QtCore
 import boto.ec2
 
 # line below is replaced on commit
-SSHTrayVersion = "20161018 201149"
+SSHTrayVersion = "20171012 190635"
 
 class RefreshServers(QtCore.QThread):
     def __init__(self):
@@ -95,7 +95,11 @@ class RefreshServers(QtCore.QThread):
                             username = 'ec2-user'
                         if 'username' in instance.tags and instance.tags['username'] != "":
                             username = instance.tags['username']
-                        ec2instances[instance.region.name][groupName][instance.id] = {'Name': instancename, 'IP' : instance.ip_address, 'Region' : instance.region.name, 'Status' : instance.state, 'username': username }
+                        if instance.ip_address:
+                            instanceip = instance.ip_address
+                        else:
+                            instanceip = instance.private_ip_address
+                        ec2instances[instance.region.name][groupName][instance.id] = {'Name': instancename, 'IP' : instanceip, 'Region' : instance.region.name, 'Status' : instance.state, 'username': username }
             accounts[accountName] = { 'instances' : ec2instances }
             print accountName, "updated"
         print "Servers updated"
